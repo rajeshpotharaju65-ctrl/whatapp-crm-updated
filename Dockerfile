@@ -1,10 +1,11 @@
-FROM node:18-bullseye-slim
 
-# Prevent Puppeteer from downloading Chromium during npm install
+FROM node:20-bookworm-slim
+
 ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
+ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium
+ENV NODE_OPTIONS="--max-old-space-size=512"
 
-# Install Git (required for dependency retrieval), Chromium, and DNS utilities
-RUN apt-get update && apt-get install -y \
+RUN apt-get update && apt-get install -y --no-install-recommends \
     git \
     chromium \
     chromium-sandbox \
@@ -13,20 +14,18 @@ RUN apt-get update && apt-get install -y \
     libasound2 \
     libatk-bridge2.0-0 \
     libgtk-3-0 \
-    dnsmasq \
+    libgbm1 \
+    fonts-liberation \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 
 COPY package*.json ./
-RUN npm install --production
+RUN npm install --omit=dev
 
 COPY . .
 
 EXPOSE 7860
 
-ENV PORT=7860
-ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium
-ENV NODE_OPTIONS="--max-old-space-size=512"
+CMD ["npm", "start"]
 
-CMD ["node", "server.js"]
