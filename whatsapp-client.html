@@ -1,0 +1,2460 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>WhatsApp Web Dashboard</title>
+  <meta name="description" content="Real-time WhatsApp Web dashboard client."/>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <style>
+    *, *::before, *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    :root {
+      --bg-app: #080a10;
+      --bg-sidebar: #0e111a;
+      --bg-chat: #080a10;
+      --bg-header: #131724;
+      --bg-active: rgba(16, 185, 129, 0.12);
+      --bg-hover: rgba(255, 255, 255, 0.04);
+      --border-color: rgba(255, 255, 255, 0.06);
+      --text-primary: #f8fafc;
+      --text-secondary: #94a3b8;
+      --text-muted: #64748b;
+      --green-primary: #10b981;
+      --green-hover: #059669;
+      --green-light: #34d399;
+      --bubble-incoming: #1e293b;
+      --bubble-outgoing: #047857;
+      --bubble-incoming-text: #f1f5f9;
+      --bubble-outgoing-text: #ecfdf5;
+      --input-bg: #131724;
+      --badge-bg: #10b981;
+      --badge-text: #080a10;
+      --radius: 12px;
+      --transition-fast: 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+      --shadow-premium: 0 10px 30px -10px rgba(0, 0, 0, 0.5);
+    }
+
+    /* Scrollbars */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: transparent;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 4px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: rgba(255, 255, 255, 0.2);
+    }
+
+    body {
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      background: var(--bg-app);
+      color: var(--text-primary);
+      height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      overflow: hidden;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* Main Container */
+    .app-container {
+      display: flex;
+      width: 100%;
+      height: 100vh;
+      background: var(--bg-sidebar);
+      overflow: hidden;
+      position: relative;
+    }
+
+    /* Sidebar Styles */
+    .sidebar {
+      width: 30%;
+      min-width: 320px;
+      max-width: 450px;
+      display: flex;
+      flex-direction: column;
+      background: var(--bg-sidebar);
+      border-right: 1px solid var(--border-color);
+      height: 100%;
+      position: relative;
+    }
+
+    .sidebar-header {
+      height: 70px;
+      background: var(--bg-header);
+      padding: 12px 20px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid var(--border-color);
+    }
+
+    .profile-info {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .avatar {
+      width: 42px;
+      height: 42px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, var(--green-primary), #0d9488);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.3rem;
+      color: white;
+      font-weight: bold;
+      box-shadow: 0 0 12px rgba(16, 185, 129, 0.2);
+    }
+
+    .profile-details {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .profile-details h3 {
+      font-size: 0.95rem;
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+
+    .status-badge {
+      font-size: 0.75rem;
+      color: var(--text-secondary);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin-top: 2px;
+    }
+
+    .status-badge::before {
+      content: '';
+      display: inline-block;
+      width: 8px;
+      height: 8px;
+      background: #eab308;
+      border-radius: 50%;
+      animation: pulse 1.5s infinite;
+    }
+
+    .status-badge.connected::before {
+      background: var(--green-primary);
+      box-shadow: 0 0 8px var(--green-primary);
+    }
+
+    @keyframes pulse {
+      0% { opacity: 0.5; transform: scale(0.9); }
+      50% { opacity: 1; transform: scale(1.1); }
+      100% { opacity: 0.5; transform: scale(0.9); }
+    }
+
+    .header-actions {
+      display: flex;
+      gap: 8px;
+    }
+
+    .icon-btn {
+      background: transparent;
+      border: none;
+      color: var(--text-secondary);
+      font-size: 1.25rem;
+      cursor: pointer;
+      width: 38px;
+      height: 38px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: var(--transition-fast);
+    }
+
+    .icon-btn:hover {
+      background: rgba(255, 255, 255, 0.06);
+      color: var(--text-primary);
+      transform: translateY(-1px);
+    }
+
+    .icon-btn:active {
+      transform: translateY(0);
+    }
+
+    /* Tab Navigation Layout */
+    .tab-navigation {
+      display: flex;
+      background: var(--bg-header);
+      border-bottom: 1px solid var(--border-color);
+      padding: 6px;
+      gap: 6px;
+    }
+    
+    .tab-btn {
+      flex: 1;
+      background: transparent;
+      border: none;
+      color: var(--text-secondary);
+      padding: 10px 6px;
+      font-size: 0.8rem;
+      font-weight: 600;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: var(--transition-fast);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
+    }
+    
+    .tab-btn:hover {
+      color: var(--text-primary);
+      background: rgba(255, 255, 255, 0.03);
+    }
+    
+    .tab-btn.active {
+      color: var(--green-primary);
+      background: rgba(16, 185, 129, 0.1);
+      box-shadow: inset 0 0 0 1px rgba(16, 185, 129, 0.15);
+    }
+
+    .search-bar-container {
+      padding: 10px 16px;
+      background: var(--bg-sidebar);
+      border-bottom: 1px solid var(--border-color);
+    }
+
+    .search-wrapper {
+      display: flex;
+      align-items: center;
+      background: var(--input-bg);
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      padding: 8px 14px;
+      gap: 10px;
+      transition: var(--transition-fast);
+    }
+
+    .search-wrapper:focus-within {
+      border-color: var(--green-primary);
+      box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.15);
+    }
+
+    .search-icon {
+      color: var(--text-secondary);
+      font-size: 0.95rem;
+    }
+
+    .search-wrapper input {
+      background: transparent;
+      border: none;
+      color: var(--text-primary);
+      font-family: inherit;
+      font-size: 0.88rem;
+      width: 100%;
+    }
+
+    .search-wrapper input:focus {
+      outline: none;
+    }
+
+    /* Chats List */
+    .chats-list {
+      flex: 1;
+      overflow-y: auto;
+      background: var(--bg-sidebar);
+    }
+
+    .chat-item {
+      display: flex;
+      padding: 14px 18px;
+      gap: 14px;
+      cursor: pointer;
+      border-bottom: 1px solid var(--border-color);
+      transition: var(--transition-fast);
+    }
+
+    .chat-item:hover {
+      background: var(--bg-hover);
+    }
+
+    .chat-item.active {
+      background: var(--bg-active);
+      box-shadow: inset 4px 0 0 var(--green-primary);
+    }
+
+    .chat-item-avatar {
+      width: 46px;
+      height: 46px;
+      border-radius: 50%;
+      background: #1f2937;
+      border: 1px solid var(--border-color);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 600;
+      color: var(--text-primary);
+      font-size: 1.15rem;
+      flex-shrink: 0;
+    }
+
+    .chat-item-content {
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      flex: 1;
+      min-width: 0;
+    }
+
+    .chat-item-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      margin-bottom: 5px;
+    }
+
+    .chat-name {
+      font-weight: 600;
+      color: var(--text-primary);
+      font-size: 0.92rem;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .chat-time {
+      font-size: 0.72rem;
+      color: var(--text-secondary);
+      flex-shrink: 0;
+    }
+
+    .chat-item-bottom {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .chat-preview {
+      font-size: 0.8rem;
+      color: var(--text-secondary);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      flex: 1;
+    }
+
+    .chat-preview.from-me::before {
+      content: '✓ ';
+      color: var(--green-light);
+    }
+
+    .unread-badge {
+      background: var(--badge-bg);
+      color: var(--badge-text);
+      font-size: 0.7rem;
+      font-weight: 700;
+      padding: 2px 6px;
+      border-radius: 20px;
+      min-width: 18px;
+      text-align: center;
+      margin-left: 6px;
+    }
+
+    /* Chat Area Layout */
+    .chat-area {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      background: var(--bg-chat);
+      position: relative;
+    }
+
+    /* Fallback and Empty States */
+    .no-chat-selected {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100%;
+      padding: 20px;
+      text-align: center;
+    }
+
+    .welcome-container {
+      max-width: 480px;
+    }
+
+    .welcome-logo {
+      font-size: 4.5rem;
+      margin-bottom: 24px;
+      filter: drop-shadow(0 0 16px rgba(16, 185, 129, 0.15));
+    }
+
+    .welcome-container h2 {
+      font-size: 1.75rem;
+      font-weight: 600;
+      color: var(--text-primary);
+      margin-bottom: 12px;
+    }
+
+    .welcome-container p {
+      color: var(--text-secondary);
+      font-size: 0.9rem;
+      line-height: 1.6;
+      margin-bottom: 28px;
+    }
+
+    .encrypted-badge {
+      font-size: 0.78rem;
+      color: var(--text-muted);
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    /* Active Chat View */
+    .active-chat-container {
+      display: flex;
+      flex-direction: column;
+      height: 100%;
+    }
+
+    .chat-header {
+      height: 70px;
+      background: var(--bg-header);
+      padding: 12px 20px;
+      display: flex;
+      align-items: center;
+      border-bottom: 1px solid var(--border-color);
+      gap: 14px;
+    }
+
+    .back-btn {
+      background: transparent;
+      border: none;
+      color: var(--text-secondary);
+      font-size: 1.25rem;
+      cursor: pointer;
+      display: none;
+      padding: 4px;
+    }
+
+    .chat-avatar {
+      width: 42px;
+      height: 42px;
+      border-radius: 50%;
+      background: #0d9488;
+      border: 1px solid var(--border-color);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 600;
+      color: white;
+      font-size: 1.05rem;
+    }
+
+    .chat-details {
+      display: flex;
+      flex-direction: column;
+      flex: 1;
+      min-width: 0;
+    }
+
+    .chat-details h3 {
+      font-size: 0.95rem;
+      font-weight: 600;
+      color: var(--text-primary);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .chat-jid {
+      font-size: 0.72rem;
+      color: var(--text-secondary);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      margin-top: 1px;
+    }
+
+    /* Messages List */
+    .messages-thread {
+      flex: 1;
+      overflow-y: auto;
+      padding: 24px 36px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      background-image: radial-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 0);
+      background-size: 24px 24px;
+      background-color: var(--bg-chat);
+    }
+
+    .message-bubble {
+      max-width: 65%;
+      padding: 10px 14px;
+      border-radius: 12px;
+      font-size: 0.88rem;
+      line-height: 1.5;
+      position: relative;
+      word-wrap: break-word;
+      white-space: pre-wrap;
+      display: flex;
+      flex-direction: column;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+    }
+
+    .message-bubble.incoming {
+      align-self: flex-start;
+      background: var(--bubble-incoming);
+      color: var(--bubble-incoming-text);
+      border-top-left-radius: 2px;
+      border: 1px solid rgba(255, 255, 255, 0.04);
+    }
+
+    .message-bubble.outgoing {
+      align-self: flex-end;
+      background: var(--bubble-outgoing);
+      color: var(--bubble-outgoing-text);
+      border-top-right-radius: 2px;
+      border: 1px solid rgba(16, 185, 129, 0.1);
+    }
+
+    .message-media-tag {
+      background: rgba(0, 0, 0, 0.2);
+      border-radius: 6px;
+      padding: 6px 10px;
+      margin-bottom: 6px;
+      font-size: 0.75rem;
+      color: var(--green-light);
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-weight: 500;
+      border: 1px solid rgba(255, 255, 255, 0.03);
+    }
+
+    .message-meta {
+      align-self: flex-end;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      margin-top: 6px;
+      font-size: 0.65rem;
+      color: var(--text-muted);
+    }
+
+    .message-ticks {
+      color: var(--green-light);
+      font-weight: bold;
+    }
+
+    /* Chat Input Bar */
+    .message-input-area {
+      height: 70px;
+      background: var(--bg-header);
+      padding: 12px 20px;
+      display: flex;
+      align-items: center;
+      border-top: 1px solid var(--border-color);
+    }
+
+    .message-form {
+      display: flex;
+      width: 100%;
+      gap: 12px;
+      align-items: center;
+    }
+
+    .message-form input {
+      flex: 1;
+      background: var(--input-bg);
+      border: 1px solid var(--border-color);
+      color: var(--text-primary);
+      padding: 11px 18px;
+      border-radius: 8px;
+      font-family: inherit;
+      font-size: 0.9rem;
+      transition: var(--transition-fast);
+    }
+
+    .message-form input:focus {
+      outline: none;
+      border-color: var(--green-primary);
+      box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.15);
+    }
+
+    .send-btn {
+      width: 42px;
+      height: 42px;
+      border-radius: 50%;
+      background: var(--green-primary);
+      border: none;
+      color: #080a10;
+      font-size: 1.1rem;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: var(--transition-fast);
+      box-shadow: 0 0 10px rgba(16, 185, 129, 0.2);
+    }
+
+    .send-btn:hover {
+      background: var(--green-hover);
+      transform: scale(1.05);
+    }
+
+    .send-btn:active {
+      transform: scale(0.95);
+    }
+
+    .send-icon {
+      transform: rotate(-10deg);
+      margin-left: 2px;
+    }
+
+    /* Modal Overlay styling */
+    .modal {
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(4, 5, 8, 0.85);
+      backdrop-filter: blur(8px);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+      padding: 20px;
+      transition: opacity var(--transition-fast);
+    }
+
+    .modal-content {
+      background: var(--bg-sidebar);
+      border: 1px solid var(--border-color);
+      border-radius: 16px;
+      padding: 36px;
+      width: 100%;
+      max-width: 440px;
+      text-align: center;
+      position: relative;
+      box-shadow: var(--shadow-premium), 0 0 40px rgba(16, 185, 129, 0.05);
+    }
+
+    .close-btn {
+      position: absolute;
+      top: 16px; right: 20px;
+      font-size: 1.5rem;
+      cursor: pointer;
+      color: var(--text-secondary);
+      transition: var(--transition-fast);
+    }
+
+    .close-btn:hover {
+      color: var(--text-primary);
+    }
+
+    .modal-content h2 {
+      font-size: 1.4rem;
+      color: var(--text-primary);
+      margin-bottom: 10px;
+      font-weight: 600;
+    }
+
+    .qr-container {
+      width: 250px;
+      height: 250px;
+      background: white;
+      border-radius: 12px;
+      margin: 24px auto;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+      position: relative;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.25);
+    }
+
+    .qr-container img {
+      width: 90%;
+      height: 90%;
+    }
+
+    .qr-instructions {
+      font-size: 0.82rem;
+      color: var(--text-secondary);
+      line-height: 1.5;
+    }
+
+    .loading-spinner {
+      border: 4px solid rgba(255, 255, 255, 0.08);
+      width: 42px;
+      height: 42px;
+      border-radius: 50%;
+      border-left-color: var(--green-primary);
+      animation: spin 1s linear infinite;
+      position: absolute;
+    }
+
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+
+    .empty-state {
+      padding: 40px 20px;
+      text-align: center;
+      color: var(--text-muted);
+      font-size: 0.9rem;
+    }
+
+    .loading-state {
+      padding: 30px;
+      text-align: center;
+      color: var(--text-secondary);
+      font-size: 0.88rem;
+    }
+
+    /* CRM Feature View Styling */
+    .tab-panel-container {
+      display: flex;
+      flex-direction: column;
+      height: 100%;
+      background: var(--bg-chat);
+      padding: 36px;
+      overflow-y: auto;
+      z-index: 5;
+    }
+    
+    .panel-header {
+      margin-bottom: 28px;
+      border-bottom: 1px solid var(--border-color);
+      padding-bottom: 18px;
+    }
+    
+    .panel-header h2 {
+      font-size: 1.6rem;
+      color: var(--text-primary);
+      margin-bottom: 8px;
+      font-weight: 700;
+    }
+    
+    .panel-header p {
+      color: var(--text-secondary);
+      font-size: 0.92rem;
+    }
+    
+    .card-grid {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 26px;
+      margin-bottom: 26px;
+    }
+    
+    @media (min-width: 900px) {
+      .card-grid {
+        grid-template-columns: 1fr 1fr;
+      }
+      .card-grid.full-width {
+        grid-template-columns: 1fr;
+      }
+    }
+    
+    .panel-card {
+      background: var(--bg-sidebar);
+      border: 1px solid var(--border-color);
+      border-radius: 16px;
+      padding: 28px;
+      box-shadow: var(--shadow-premium);
+    }
+    
+    .panel-card h3 {
+      font-size: 1.15rem;
+      margin-bottom: 18px;
+      color: var(--green-primary);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-weight: 600;
+    }
+    
+    .form-row {
+      margin-bottom: 18px;
+    }
+    
+    .form-row label {
+      display: block;
+      font-size: 0.85rem;
+      color: var(--text-secondary);
+      margin-bottom: 8px;
+      font-weight: 600;
+    }
+    
+    .form-row input[type="text"],
+    .form-row input[type="password"],
+    .form-row input[type="number"],
+    .form-row select,
+    .form-row textarea {
+      width: 100%;
+      background: var(--input-bg);
+      border: 1px solid var(--border-color);
+      color: var(--text-primary);
+      padding: 12px 14px;
+      border-radius: 8px;
+      font-family: inherit;
+      font-size: 0.88rem;
+      box-sizing: border-box;
+      transition: var(--transition-fast);
+    }
+    
+    .form-row textarea {
+      resize: vertical;
+      min-height: 120px;
+    }
+    
+    .form-row input[type="file"] {
+      width: 100%;
+      color: var(--text-secondary);
+      font-size: 0.88rem;
+      background: var(--input-bg);
+      border: 1px dashed var(--border-color);
+      border-radius: 8px;
+      padding: 12px;
+      cursor: pointer;
+    }
+    
+    .form-row input[type="file"]::-webkit-file-upload-button {
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid var(--border-color);
+      color: var(--text-primary);
+      padding: 6px 12px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-family: inherit;
+      font-weight: 500;
+      margin-right: 12px;
+      transition: var(--transition-fast);
+    }
+    
+    .form-row input[type="file"]::-webkit-file-upload-button:hover {
+      background: rgba(255, 255, 255, 0.1);
+      color: var(--green-light);
+    }
+    
+    .form-row input:focus,
+    .form-row textarea:focus,
+    .form-row select:focus {
+      outline: none;
+      border-color: var(--green-primary);
+      box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.15);
+    }
+    
+    /* Toggle switch */
+    .switch-wrapper {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 22px;
+      padding-bottom: 18px;
+      border-bottom: 1px solid var(--border-color);
+    }
+    
+    .switch-label-details h4 {
+      font-size: 0.98rem;
+      color: var(--text-primary);
+      margin-bottom: 5px;
+      font-weight: 600;
+    }
+    
+    .switch-label-details p {
+      font-size: 0.82rem;
+      color: var(--text-secondary);
+    }
+    
+    .switch {
+      position: relative;
+      display: inline-block;
+      width: 50px;
+      height: 26px;
+      flex-shrink: 0;
+    }
+    
+    .switch input {
+      opacity: 0;
+      width: 0;
+      height: 0;
+    }
+    
+    .slider {
+      position: absolute;
+      cursor: pointer;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background-color: #334155;
+      transition: var(--transition-fast);
+      border-radius: 26px;
+    }
+    
+    .slider:before {
+      position: absolute;
+      content: "";
+      height: 20px;
+      width: 20px;
+      left: 3px;
+      bottom: 3px;
+      background-color: var(--text-primary);
+      transition: var(--transition-fast);
+      border-radius: 50%;
+    }
+    
+    input:checked + .slider {
+      background-color: var(--green-primary);
+    }
+    
+    input:checked + .slider:before {
+      transform: translateX(24px);
+    }
+    
+    .btn-primary {
+      background: var(--green-primary);
+      color: #080a10;
+      border: none;
+      padding: 12px 24px;
+      border-radius: 8px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: var(--transition-fast);
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      box-shadow: 0 2px 8px rgba(16, 185, 129, 0.15);
+    }
+    
+    .btn-primary:hover {
+      background: var(--green-hover);
+      transform: translateY(-1px);
+    }
+
+    .btn-primary:active {
+      transform: translateY(0);
+    }
+    
+    .btn-danger {
+      background: #ef4444;
+      color: white;
+      border: none;
+      padding: 12px 24px;
+      border-radius: 8px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: var(--transition-fast);
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      box-shadow: 0 2px 8px rgba(239, 68, 68, 0.15);
+    }
+    
+    .btn-danger:hover {
+      background: #dc2626;
+      transform: translateY(-1px);
+    }
+
+    .btn-danger:active {
+      transform: translateY(0);
+    }
+    
+    .btn-primary:disabled,
+    .btn-danger:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+      transform: none !important;
+    }
+    
+    /* Code block for documentation */
+    .code-block {
+      background: #04060a;
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      padding: 16px;
+      font-family: 'Fira Code', 'Consolas', 'Courier New', Courier, monospace;
+      font-size: 0.85rem;
+      color: #34d399;
+      overflow-x: auto;
+      margin-top: 8px;
+      margin-bottom: 16px;
+      position: relative;
+    }
+    
+    .code-block .copy-code-btn {
+      position: absolute;
+      top: 10px; right: 10px;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid var(--border-color);
+      color: var(--text-secondary);
+      border-radius: 6px;
+      padding: 4px 10px;
+      font-size: 0.72rem;
+      cursor: pointer;
+      transition: var(--transition-fast);
+    }
+    
+    .code-block .copy-code-btn:hover {
+      color: var(--text-primary);
+      background: rgba(255, 255, 255, 0.12);
+    }
+    
+    /* Broadcast stats and logs */
+    .broadcast-stats {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 16px;
+      margin-bottom: 20px;
+    }
+    
+    .stat-card {
+      background: rgba(255, 255, 255, 0.02);
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      padding: 14px;
+      text-align: center;
+    }
+    
+    .stat-card .stat-val {
+      font-size: 1.6rem;
+      font-weight: 700;
+      color: var(--text-primary);
+      margin-bottom: 4px;
+    }
+    
+    .stat-card .stat-label {
+      font-size: 0.75rem;
+      color: var(--text-secondary);
+    }
+    
+    .stat-card.total {
+      border-color: rgba(255, 255, 255, 0.12);
+      background: rgba(255, 255, 255, 0.02);
+    }
+    .stat-card.pending {
+      border-color: rgba(148, 163, 184, 0.2);
+      background: rgba(148, 163, 184, 0.02);
+    }
+    .stat-card.sent {
+      border-color: rgba(16, 185, 129, 0.25);
+      background: rgba(16, 185, 129, 0.03);
+      box-shadow: 0 0 12px rgba(16, 185, 129, 0.05);
+    }
+    .stat-card.failed {
+      border-color: rgba(239, 68, 68, 0.25);
+      background: rgba(239, 68, 68, 0.03);
+      box-shadow: 0 0 12px rgba(239, 68, 68, 0.05);
+    }
+    
+    .progress-bar-bg {
+      background: rgba(255, 255, 255, 0.05);
+      height: 10px;
+      border-radius: 5px;
+      overflow: hidden;
+      margin-bottom: 20px;
+    }
+    
+    .progress-bar-fill {
+      background: var(--green-primary);
+      width: 0%;
+      height: 100%;
+      transition: width 0.3s ease;
+      box-shadow: 0 0 8px var(--green-primary);
+    }
+    
+    .broadcast-logs {
+      background: #04060a;
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      padding: 14px;
+      max-height: 200px;
+      height: 200px;
+      overflow-y: auto;
+      font-family: 'Fira Code', monospace;
+      font-size: 0.8rem;
+      color: var(--text-secondary);
+    }
+    
+    .broadcast-log-entry {
+      margin-bottom: 6px;
+    }
+    .broadcast-log-entry.success { color: var(--green-primary); }
+    .broadcast-log-entry.error { color: #f87171; }
+    .broadcast-log-entry.info { color: var(--text-primary); }
+
+    /* Toast Element styling */
+    #toast {
+      position: fixed;
+      bottom: 30px;
+      left: 50%;
+      transform: translate(-50%, 80px);
+      background: var(--bg-header);
+      border: 1px solid var(--border-color);
+      color: var(--text-primary);
+      padding: 12px 24px;
+      border-radius: 50px;
+      font-size: 0.88rem;
+      font-weight: 600;
+      box-shadow: var(--shadow-premium);
+      transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275), opacity 0.3s;
+      opacity: 0;
+      pointer-events: none;
+      z-index: 1010;
+    }
+
+    #toast.show {
+      transform: translate(-50%, 0);
+      opacity: 1;
+    }
+
+    #toast.ok {
+      border-color: var(--green-primary);
+      box-shadow: 0 0 16px rgba(16, 185, 129, 0.15), var(--shadow-premium);
+    }
+
+    #toast.err {
+      border-color: #ef4444;
+      box-shadow: 0 0 16px rgba(239, 68, 68, 0.15), var(--shadow-premium);
+    }
+
+    /* Responsive Queries */
+    @media (max-width: 768px) {
+      .sidebar {
+        width: 100%;
+        max-width: none;
+        min-width: 0;
+      }
+      .chat-area {
+        display: none;
+        width: 100%;
+      }
+      body.chat-open .sidebar {
+        display: none;
+      }
+      body.chat-open .chat-area {
+        display: flex;
+      }
+      .back-btn {
+        display: block;
+      }
+      .tab-panel-container {
+        padding: 20px;
+      }
+      .broadcast-stats {
+        grid-template-columns: repeat(2, 1fr);
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="app-container">
+    <!-- Sidebar -->
+    <aside class="sidebar">
+      <header class="sidebar-header">
+        <div class="profile-info">
+          <div class="avatar">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"></path><line x1="3" y1="6" x2="21" y2="6"></line><path d="M16 10a4 4 0 0 1-8 0"></path></svg>
+          </div>
+          <div class="profile-details">
+            <h3>WhatsApp Admin</h3>
+            <span class="status-badge" id="status-badge">Connecting...</span>
+          </div>
+        </div>
+        <div class="header-actions">
+          <button id="qr-btn" class="icon-btn" title="QR Code Authentication">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
+          </button>
+          <button id="logout-btn" class="icon-btn" title="Logout">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
+          </button>
+        </div>
+      </header>
+
+      <!-- Navigation Tabs -->
+      <div class="tab-navigation">
+        <button class="tab-btn active" id="tab-chats" onclick="switchTab('chats')">
+          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
+          <span>Chats</span>
+        </button>
+        <button class="tab-btn" id="tab-broadcast" onclick="switchTab('broadcast')">
+          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5L6 9H2v6h4l5 4V5z"></path><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"></path></svg>
+          <span>Broadcast</span>
+        </button>
+        <button class="tab-btn" id="tab-automation" onclick="switchTab('automation')">
+          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="21" x2="4" y2="14"></line><line x1="4" y1="10" x2="4" y2="3"></line><line x1="12" y1="21" x2="12" y2="12"></line><line x1="12" y1="8" x2="12" y2="3"></line><line x1="20" y1="21" x2="20" y2="16"></line><line x1="20" y1="12" x2="20" y2="3"></line><line x1="1" y1="14" x2="7" y2="14"></line><line x1="9" y1="8" x2="15" y2="8"></line><line x1="17" y1="16" x2="23" y2="16"></line></svg>
+          <span>Automation</span>
+        </button>
+        <button class="tab-btn" id="tab-apidocs" onclick="switchTab('apidocs')">
+          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
+          <span>API Docs</span>
+        </button>
+      </div>
+
+      <div class="search-bar-container">
+        <div class="search-wrapper">
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: var(--text-secondary);"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+          <input type="text" id="chat-search" placeholder="Search or start new chat" autocomplete="off">
+        </div>
+      </div>
+
+      <div class="chats-list" id="chats-list">
+        <div class="loading-state">Loading chats...</div>
+      </div>
+    </aside>
+
+    <!-- Chat & CRM Areas -->
+    <main class="chat-area">
+      <!-- Fallback empty panel -->
+      <div class="no-chat-selected" id="no-chat-state">
+        <div class="welcome-container">
+          <div class="welcome-logo">
+            <svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="var(--green-primary)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="opacity: 0.85; margin-bottom: 8px;"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
+          </div>
+          <h2>WhatsApp Chat Dashboard</h2>
+          <p>Send and receive messages in real-time. Keep this dashboard open to manage your chat sessions.</p>
+          <div class="encrypted-badge">
+            <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 4px;"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
+            Secure Session Authenticated
+          </div>
+        </div>
+      </div>
+
+      <!-- Active conversation panel -->
+      <div class="active-chat-container" id="active-chat-state" style="display: none;">
+        <header class="chat-header">
+          <button class="back-btn" id="back-btn">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>
+          </button>
+          <div class="chat-avatar" id="chat-header-avatar">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+          </div>
+          <div class="chat-details">
+            <h3 id="chat-header-name">Customer Name</h3>
+            <span id="chat-header-jid" class="chat-jid">number@c.us</span>
+          </div>
+        </header>
+
+        <!-- Messages Thread -->
+        <div class="messages-thread" id="messages-thread">
+          <!-- Messages will be injected here -->
+        </div>
+
+        <!-- Chat Input -->
+        <footer class="message-input-area">
+          <form id="message-form" class="message-form">
+            <input type="text" id="message-input" placeholder="Type a message" autocomplete="off" required>
+            <button type="submit" class="send-btn">
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="send-icon"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
+            </button>
+          </form>
+        </footer>
+      </div>
+
+      <!-- Broadcast View -->
+      <div class="tab-panel-container" id="broadcast-panel" style="display: none;">
+        <div class="panel-header">
+          <h2 style="display: flex; align-items: center; gap: 10px;">
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: var(--green-primary);"><path d="M11 5L6 9H2v6h4l5 4V5z"></path><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"></path></svg>
+            Message Broadcasting
+          </h2>
+          <p>Send customized messages to multiple contacts using Excel, CSV, or direct input.</p>
+        </div>
+        
+        <div class="card-grid">
+          <!-- Left Card: Broadcast settings -->
+          <div class="panel-card">
+            <h3 style="display: flex; align-items: center; gap: 8px;">
+              <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="21" x2="4" y2="14"></line><line x1="4" y1="10" x2="4" y2="3"></line><line x1="12" y1="21" x2="12" y2="12"></line><line x1="12" y1="8" x2="12" y2="3"></line><line x1="20" y1="21" x2="20" y2="16"></line><line x1="20" y1="12" x2="20" y2="3"></line><line x1="1" y1="14" x2="7" y2="14"></line><line x1="9" y1="8" x2="15" y2="8"></line><line x1="17" y1="16" x2="23" y2="16"></line></svg>
+              Broadcast Setup
+            </h3>
+            <div class="form-row">
+              <label for="import-file">Upload Contacts File (.xlsx, .xls, .csv)</label>
+              <input type="file" id="import-file" accept=".xlsx, .xls, .csv">
+              <span style="font-size: 0.75rem; color: var(--text-secondary); margin-top: 4px; display: block;">
+                File must have a header row. Columns will be available as dynamic variables (e.g. `{Name}`, `{Phone}`).
+              </span>
+            </div>
+            
+            <div class="form-row">
+              <label for="direct-numbers">Or Direct Numbers (one per line, with country code)</label>
+              <textarea id="direct-numbers" placeholder="919048186012&#10;919876543210" style="min-height: 80px;"></textarea>
+            </div>
+            
+            <div class="form-row">
+              <label for="broadcast-msg-template">Message Template</label>
+              <textarea id="broadcast-msg-template" placeholder="Hello {Name}, this is an automated broadcast!"></textarea>
+              <span style="font-size: 0.75rem; color: var(--text-secondary); margin-top: 4px; display: block;">
+                Use brackets like `{Name}` to substitute row variables.
+              </span>
+            </div>
+            
+            <div class="form-row">
+              <label for="campaign-media">Attach Image, Video or Document (optional)</label>
+              <input type="file" id="campaign-media" accept="image/*,video/*,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.csv">
+              <div style="display: flex; align-items: center; gap: 10px; margin-top: 6px;">
+                <span id="campaign-media-info" style="font-size: 0.75rem; color: var(--text-secondary); flex: 1;">No file selected. Max 16 MB. The message text is sent as the caption.</span>
+                <button type="button" id="campaign-media-clear" class="btn-danger" onclick="clearCampaignMedia()" style="padding: 4px 10px; font-size: 0.75rem;">Remove</button>
+              </div>
+            </div>
+
+            <div class="form-row">
+              <label for="campaign-flow">Message Flow (optional extra steps)</label>
+              <textarea id="campaign-flow" placeholder="Thanks {Name}! Here is how to order...&#10;---&#10;Step 3 text..." style="min-height: 90px;"></textarea>
+              <span style="font-size: 0.75rem; color: var(--text-secondary); margin-top: 4px; display: block;">
+                Separate steps with a line containing ---. Steps are sent in order after the main message. {Name} placeholders work here too.
+              </span>
+            </div>
+
+            <div class="form-row">
+              <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                <input type="checkbox" id="campaign-ai-enabled">
+                Auto AI follow-up after sending
+              </label>
+              <textarea id="campaign-ai-prompt" placeholder="e.g. Share 2-3 benefits of this offer and a helpful next step, in a friendly tone." style="min-height: 70px;"></textarea>
+              <span style="font-size: 0.75rem; color: var(--text-secondary); margin-top: 4px; display: block;">
+                The AI writes one related-details message per contact, using the OpenRouter key and model from the Automation tab.
+              </span>
+            </div>
+
+            <div class="form-row">
+              <label for="campaign-gap">Gap between steps and AI follow-up (seconds)</label>
+              <input type="number" id="campaign-gap" min="1" max="120" value="3">
+            </div>
+
+            <div class="form-row">
+              <label for="broadcast-delay">Delay between messages (seconds)</label>
+              <input type="number" id="broadcast-delay" min="1" max="120" value="5">
+              <span style="font-size: 0.75rem; color: var(--text-secondary); margin-top: 4px; display: block;">
+                A dynamic random delay of ±20% is added to emulate human typing speed and reduce blocking risks.
+              </span>
+            </div>
+            
+            <div style="display: flex; gap: 12px; margin-top: 20px;">
+              <button id="start-broadcast-btn" class="btn-primary" onclick="startBroadcast()">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 4px;"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
+                Start Broadcast
+              </button>
+              <button id="stop-broadcast-btn" class="btn-danger" onclick="stopBroadcast()" disabled>
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 4px;"><rect x="4" y="4" width="16" height="16" rx="2" ry="2"></rect></svg>
+                Stop
+              </button>
+            </div>
+          </div>
+          
+          <!-- Right Card: Status & Progress -->
+          <div class="panel-card">
+            <h3 style="display: flex; align-items: center; gap: 8px;">
+              <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"></line><line x1="12" y1="20" x2="12" y2="4"></line><line x1="6" y1="20" x2="6" y2="14"></line></svg>
+              Delivery Progress
+            </h3>
+            
+            <div class="broadcast-stats">
+              <div class="stat-card total">
+                <div class="stat-val" id="stat-total">0</div>
+                <div class="stat-label">Total</div>
+              </div>
+              <div class="stat-card pending">
+                <div class="stat-val" id="stat-pending" style="color: var(--text-secondary);">0</div>
+                <div class="stat-label">Pending</div>
+              </div>
+              <div class="stat-card sent">
+                <div class="stat-val" id="stat-sent" style="color: var(--green-primary);">0</div>
+                <div class="stat-label">Sent</div>
+              </div>
+              <div class="stat-card failed">
+                <div class="stat-val" id="stat-failed" style="color: #ef5350;">0</div>
+                <div class="stat-label">Failed</div>
+              </div>
+            </div>
+            
+            <div class="progress-bar-bg">
+              <div class="progress-bar-fill" id="broadcast-progress-bar"></div>
+            </div>
+            
+            <h4 style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 8px;">Activity Logs</h4>
+            <div class="broadcast-logs" id="broadcast-logs-container">
+              <div class="broadcast-log-entry info">Logs will appear here when the broadcast starts...</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Automation View -->
+      <div class="tab-panel-container" id="automation-panel" style="display: none;">
+        <div class="panel-header">
+          <h2 style="display: flex; align-items: center; gap: 10px;">
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: var(--green-primary);"><rect x="4" y="4" width="16" height="16" rx="2" ry="2"></rect><rect x="9" y="9" width="6" height="6"></rect><line x1="9" y1="1" x2="9" y2="4"></line><line x1="15" y1="1" x2="15" y2="4"></line><line x1="9" y1="20" x2="9" y2="23"></line><line x1="15" y1="20" x2="15" y2="23"></line><line x1="20" y1="9" x2="23" y2="9"></line><line x1="20" y1="15" x2="23" y2="15"></line><line x1="1" y1="9" x2="4" y2="9"></line><line x1="1" y1="15" x2="4" y2="15"></line></svg>
+            AI Auto-Reply Automation
+          </h2>
+          <p>Configure automated AI responses for incoming WhatsApp messages using OpenRouter LLMs.</p>
+        </div>
+        
+        <div class="card-grid full-width">
+          <div class="panel-card">
+            <div class="switch-wrapper">
+              <div class="switch-label-details">
+                <h4>Enable AI Autoreply</h4>
+                <p>Turn automated AI customer responses on or off globally.</p>
+              </div>
+              <label class="switch">
+                <input type="checkbox" id="ai-toggle" checked>
+                <span class="slider"></span>
+              </label>
+            </div>
+            
+            <div class="form-row">
+              <label for="ai-api-key">OpenRouter API Key</label>
+              <input type="password" id="ai-api-key" placeholder="sk-or-v1-...">
+              <span style="font-size: 0.75rem; color: var(--text-secondary); margin-top: 4px; display: block;">
+                Obtain an API key from <a href="https://openrouter.ai/keys" target="_blank" style="color: var(--green-light); text-decoration: none;">openrouter.ai</a>.
+              </span>
+            </div>
+
+            <div class="form-row">
+              <label for="ai-model">AI Model</label>
+              <select id="ai-model">
+                <option value="google/gemma-2-9b-it:free">google/gemma-2-9b-it:free (Fast, Free)</option>
+                <option value="meta-llama/llama-3-8b-instruct:free">meta-llama/llama-3-8b-instruct:free (Accurate, Free)</option>
+                <option value="qwen/qwen-2.5-72b-instruct:free">qwen/qwen-2.5-72b-instruct:free (Premium, Free)</option>
+                <option value="google/gemma-4-26b-a4b-it:free">google/gemma-4-26b-a4b-it:free (Premium, Free)</option>
+                <option value="openrouter/auto">openrouter/auto (Auto routing)</option>
+              </select>
+            </div>
+
+            <div class="form-row" style="background: rgba(255, 255, 255, 0.02); border: 1px solid var(--border-color); border-radius: 8px; padding: 16px; margin-bottom: 20px;">
+              <div style="display: flex; align-items: flex-start; gap: 10px; color: var(--text-secondary); font-size: 0.88rem; line-height: 1.4;">
+                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: var(--green-primary); flex-shrink: 0; margin-top: 2px;"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>
+                <div>
+                  <strong style="color: var(--text-primary); display: block; margin-bottom: 4px;">System Instructions Managed via server Environment</strong>
+                  System instructions/context are managed directly via server environment variables (<code>.env</code> file) on the backend to ensure security and consistency.
+                </div>
+              </div>
+              <input type="hidden" id="ai-system-prompt">
+            </div>
+            
+            <div style="margin-top: 20px;">
+              <button class="btn-primary" onclick="saveAutomationConfig()">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 4px;"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline></svg>
+                Save Configuration
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- API Docs View -->
+      <div class="tab-panel-container" id="apidocs-panel" style="display: none;">
+        <div class="panel-header">
+          <h2 style="display: flex; align-items: center; gap: 10px;">
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: var(--green-primary);"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
+            Developer API Documentation
+          </h2>
+          <p>Integrate your WhatsApp automation client with external CRM, ERP, or billing applications.</p>
+        </div>
+        
+        <div class="card-grid full-width">
+          <div class="panel-card">
+            <h3 style="display: flex; align-items: center; gap: 8px;">
+              <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"></path></svg>
+              Authentication Secret
+            </h3>
+            <p style="font-size: 0.9rem; color: var(--text-secondary); margin-bottom: 12px;">
+              All HTTP REST requests must include your API key. You can supply it in the headers or as a query parameter.
+            </p>
+            <div class="form-row">
+              <label>Your WA_SECRET Key</label>
+              <div style="display: flex; gap: 8px;">
+                <input type="text" id="api-docs-secret" readonly style="font-family: monospace; background: rgba(0,0,0,0.25);">
+                <button class="btn-primary" onclick="copyDocsSecret()" style="white-space: nowrap;">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 4px;"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+                  Copy Key
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div class="panel-card">
+            <h3 style="display: flex; align-items: center; gap: 8px;">
+              <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
+              Send Text/Media Message
+            </h3>
+            <p style="font-size: 0.9rem; color: var(--text-secondary); margin-bottom: 12px;">
+              Send custom plain-text messages or media files (images, PDFs, documents) via HTTP POST.
+            </p>
+            <div class="form-row">
+              <span style="background: #00e676; color: black; font-weight: bold; padding: 2px 6px; border-radius: 4px; font-size: 0.75rem;">POST</span>
+              <span style="font-family: monospace; font-size: 0.9rem; font-weight: bold; margin-left: 8px;" id="api-docs-endpoint-url">/api/send-message</span>
+            </div>
+            
+            <h4 style="font-size: 0.85rem; color: var(--text-secondary); margin-top: 16px; margin-bottom: 6px;">Request Headers</h4>
+            <div class="code-block" style="color: #bbb; background: #111b21;">
+              Content-Type: application/json<br>
+              x-wa-secret: <span class="docs-secret-placeholder">your-secret-key</span>
+            </div>
+
+            <h4 style="font-size: 0.85rem; color: var(--text-secondary); margin-top: 16px; margin-bottom: 6px;">Request Payload (JSON)</h4>
+            <div class="code-block" style="color: #bbb; background: #111b21;">
+{
+  "phone": "919048186012",
+  "message": "Hello from the API!",
+  "countryCode": "91"
+}
+            </div>
+
+            <h4 style="font-size: 0.85rem; color: var(--text-secondary); margin-top: 16px; margin-bottom: 6px;">cURL Example</h4>
+            <div class="code-block">
+              <button class="copy-code-btn" onclick="copyCode(this)">Copy</button>
+              <span id="curl-text">curl -X POST -H "Content-Type: application/json" \
+  -H "x-wa-secret: <span class="docs-secret-placeholder">your-secret-key</span>" \
+  -d '{"phone": "919048186012", "message": "Hello from the API!"}' \
+  <span id="docs-curl-base-url">http://localhost:3001</span>/api/send-message</span>
+            </div>
+
+            <h4 style="font-size: 0.85rem; color: var(--text-secondary); margin-top: 16px; margin-bottom: 6px;">Node.js Fetch Example</h4>
+            <div class="code-block">
+              <button class="copy-code-btn" onclick="copyCode(this)">Copy</button>
+              <span id="node-text">fetch('<span id="docs-node-base-url">http://localhost:3001</span>/api/send-message', {
+  method: 'POST',
+  headers: {
+    'Content-Type': 'application/json',
+    'x-wa-secret': '<span class="docs-secret-placeholder">your-secret-key</span>'
+  },
+  body: JSON.stringify({
+    phone: '919048186012',
+    message: 'Hello from Node!'
+  })
+})
+.then(res => res.json())
+.then(data => console.log(data));</span>
+            </div>
+          </div>
+
+          <div class="panel-card" style="margin-top: 24px;">
+            <h3 style="display: flex; align-items: center; gap: 8px;">
+              <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5L6 9H2v6h4l5 4V5z"></path><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"></path></svg>
+              Trigger Message Broadcast
+            </h3>
+            <p style="font-size: 0.9rem; color: var(--text-secondary); margin-bottom: 12px;">
+              Trigger a personalized message broadcast task to a list of contacts asynchronously in the background.
+            </p>
+            <div class="form-row">
+              <span style="background: #00e676; color: black; font-weight: bold; padding: 2px 6px; border-radius: 4px; font-size: 0.75rem;">POST</span>
+              <span style="font-family: monospace; font-size: 0.9rem; font-weight: bold; margin-left: 8px;" id="api-docs-broadcast-url">/api/broadcast</span>
+            </div>
+            
+            <h4 style="font-size: 0.85rem; color: var(--text-secondary); margin-top: 16px; margin-bottom: 6px;">Request Headers</h4>
+            <div class="code-block" style="color: #bbb; background: #111b21;">
+              Content-Type: application/json<br>
+              x-wa-secret: <span class="docs-secret-placeholder">your-secret-key</span>
+            </div>
+
+            <h4 style="font-size: 0.85rem; color: var(--text-secondary); margin-top: 16px; margin-bottom: 6px;">Request Payload (JSON)</h4>
+            <div class="code-block" style="color: #bbb; background: #111b21;">
+{
+  "contacts": [
+    { "Phone": "919048186012", "Name": "Alice" },
+    { "Phone": "919876543210", "Name": "Bob" }
+  ],
+  "message": "Hello {Name}, this is a personalized broadcast!",
+  "interval": 5
+}
+            </div>
+
+            <h4 style="font-size: 0.85rem; color: var(--text-secondary); margin-top: 16px; margin-bottom: 6px;">cURL Example</h4>
+            <div class="code-block">
+              <button class="copy-code-btn" onclick="copyCode(this)">Copy</button>
+              <span id="curl-broadcast-text">curl -X POST -H "Content-Type: application/json" \
+  -H "x-wa-secret: <span class="docs-secret-placeholder">your-secret-key</span>" \
+  -d '{"contacts": [{"Phone": "919048186012", "Name": "Alice"}, {"Phone": "919876543210", "Name": "Bob"}], "message": "Hello {Name}!", "interval": 5}' \
+  <span id="docs-curl-broadcast-base-url">http://localhost:3001</span>/api/broadcast</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <!-- QR Auth Overlay Modal -->
+  <div class="modal" id="qr-modal">
+    <div class="modal-content">
+      <span class="close-btn" id="close-modal">&times;</span>
+      <h2>WhatsApp Login</h2>
+      <p style="font-size: 0.88rem; color: var(--text-secondary);">Authenticate the WhatsApp client by scanning the QR code.</p>
+      <div class="qr-container" id="modal-qr-container">
+        <div class="loading-spinner"></div>
+      </div>
+      <p class="qr-instructions">Open WhatsApp on your phone &gt; Tap Menu or Settings &gt; Select Linked Devices &gt; Tap Link a Device and point your phone camera here.</p>
+    </div>
+  </div>
+
+  <!-- Toast Element -->
+  <div id="toast"></div>
+
+  <script>
+    let activeJid = null;
+    let chatsCached = [];
+    let isReady = false;
+    let qrData = null;
+    let messagePollInterval = null;
+    
+    // Tabbed CRM State
+    let currentTab = 'chats';
+    let broadcastList = [];
+    let isBroadcasting = false;
+    let broadcastIndex = 0;
+    let broadcastTimer = null;
+    let waSecretKey = '';
+
+    // Element Caches
+    const statusBadge = document.getElementById('status-badge');
+    const chatsListEl = document.getElementById('chats-list');
+    const noChatState = document.getElementById('no-chat-state');
+    const activeChatState = document.getElementById('active-chat-state');
+    const chatHeaderName = document.getElementById('chat-header-name');
+    const chatHeaderJid = document.getElementById('chat-header-jid');
+    const chatHeaderAvatar = document.getElementById('chat-header-avatar');
+    const messagesThread = document.getElementById('messages-thread');
+    const messageForm = document.getElementById('message-form');
+    const messageInput = document.getElementById('message-input');
+    const searchInput = document.getElementById('chat-search');
+    
+    // Modal elements
+    const qrBtn = document.getElementById('qr-btn');
+    const qrModal = document.getElementById('qr-modal');
+    const closeModal = document.getElementById('close-modal');
+    const modalQrContainer = document.getElementById('modal-qr-container');
+    const logoutBtn = document.getElementById('logout-btn');
+
+    // Add upload change listener
+    document.getElementById('import-file').addEventListener('change', handleFileUpload);
+    document.getElementById('campaign-media').addEventListener('change', handleCampaignMediaSelect);
+
+    /* ─── Fetch Helper with Auth credentials ─── */
+    async function apiFetch(url, options = {}) {
+      try {
+        const response = await fetch(url, options);
+        if (response.status === 401) {
+          window.location.href = '/login';
+          throw new Error('Unauthorized');
+        }
+        return response;
+      } catch (err) {
+        console.error('Fetch error:', err.message);
+        throw err;
+      }
+    }
+
+    /* ─── Status Checking & QR Rendering ─── */
+    async function checkStatus() {
+      try {
+        const res = await apiFetch('/status');
+        const data = await res.json();
+        
+        isReady = data.ready;
+        qrData = data.qr;
+        waSecretKey = data.waSecret || '';
+
+        // Expose WA_SECRET key to API Docs
+        const secretInput = document.getElementById('api-docs-secret');
+        if (secretInput) secretInput.value = waSecretKey;
+
+        const placeholders = document.querySelectorAll('.docs-secret-placeholder');
+        placeholders.forEach(el => {
+          el.textContent = waSecretKey || 'your-secret-key';
+        });
+
+        // Set live origins in docs snippets
+        const currentOrigin = window.location.origin;
+        document.getElementById('docs-curl-base-url').textContent = currentOrigin;
+        document.getElementById('docs-node-base-url').textContent = currentOrigin;
+        document.getElementById('docs-curl-broadcast-base-url').textContent = currentOrigin;
+
+        if (isReady) {
+          statusBadge.textContent = 'Connected';
+          statusBadge.className = 'status-badge connected';
+          if (qrModal.style.display === 'flex') {
+            qrModal.style.display = 'none';
+            toast('WhatsApp successfully connected!', 'ok');
+          }
+        } else {
+          statusBadge.textContent = qrData ? 'Scan here' : 'Connecting...';
+          statusBadge.className = 'status-badge';
+          
+          if (qrModal.style.display === 'flex') {
+            renderQrCodeInModal();
+          }
+        }
+      } catch (e) {
+        statusBadge.textContent = 'Offline';
+        statusBadge.className = 'status-badge';
+      }
+    }
+
+    function renderQrCodeInModal() {
+      if (isReady) {
+        modalQrContainer.innerHTML = `<div style="padding: 40px; color: var(--green-primary); font-weight: bold;">✓ Connected</div>`;
+      } else if (qrData) {
+        modalQrContainer.innerHTML = `<img src="${qrData}" alt="WhatsApp Scan QR" />`;
+      } else {
+        modalQrContainer.innerHTML = `
+          <div class="loading-spinner"></div>
+          <p style="margin-top: 140px; font-size: 0.8rem; color: var(--text-secondary);">Waiting for WhatsApp QR generation...</p>
+        `;
+      }
+    }
+
+    /* ─── CRM Tab Switching ─── */
+    function switchTab(tabName) {
+      currentTab = tabName;
+      
+      // Update Tab Styles
+      document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+      const activeBtn = document.getElementById(`tab-${tabName}`);
+      if (activeBtn) activeBtn.classList.add('active');
+
+      // Hide all panels
+      noChatState.style.display = 'none';
+      activeChatState.style.display = 'none';
+      document.getElementById('broadcast-panel').style.display = 'none';
+      document.getElementById('automation-panel').style.display = 'none';
+      document.getElementById('apidocs-panel').style.display = 'none';
+
+      // Load specific tab behavior
+      if (tabName === 'chats') {
+        if (activeJid) {
+          activeChatState.style.display = 'flex';
+          loadMessages(activeJid, true);
+          
+          if (messagePollInterval) clearInterval(messagePollInterval);
+          messagePollInterval = setInterval(() => loadMessages(activeJid, false), 3000);
+        } else {
+          noChatState.style.display = 'flex';
+        }
+      } else {
+        // Stop background thread polling for message view when looking at configs
+        if (messagePollInterval) {
+          clearInterval(messagePollInterval);
+          messagePollInterval = null;
+        }
+
+        document.getElementById(`${tabName}-panel`).style.display = 'flex';
+
+        if (tabName === 'automation') {
+          loadAutomationConfig();
+        }
+      }
+    }
+
+    /* ─── AI Autoreply Configuration ─── */
+    async function loadAutomationConfig() {
+      try {
+        const res = await apiFetch('/api/automation/config');
+        if (res.ok) {
+          const config = await res.json();
+          document.getElementById('ai-toggle').checked = !!config.enabled;
+          document.getElementById('ai-api-key').value = config.openRouterApiKey || '';
+          document.getElementById('ai-model').value = config.model || 'google/gemma-2-9b-it:free';
+          document.getElementById('ai-system-prompt').value = config.systemPrompt || '';
+        }
+      } catch (err) {
+        console.error('Failed to load automation settings:', err.message);
+      }
+    }
+
+    async function saveAutomationConfig() {
+      const enabled = document.getElementById('ai-toggle').checked;
+      const openRouterApiKey = document.getElementById('ai-api-key').value.trim();
+      const model = document.getElementById('ai-model').value;
+      const systemPrompt = document.getElementById('ai-system-prompt').value;
+
+      try {
+        const res = await apiFetch('/api/automation/config', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ enabled, openRouterApiKey, model, systemPrompt })
+        });
+        if (res.ok) {
+          toast('Configuration saved successfully!', 'ok');
+        } else {
+          const data = await res.json();
+          toast(data.error || 'Failed to save configuration', 'err');
+        }
+      } catch (err) {
+        toast('Error saving configuration: ' + err.message, 'err');
+      }
+    }
+
+    /* ─── Excel/CSV Contacts Upload ─── */
+    function handleFileUpload(e) {
+      const file = e.target.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = function(evt) {
+        const data = evt.target.result;
+        try {
+          const workbook = XLSX.read(data, { type: 'binary' });
+          const firstSheetName = workbook.SheetNames[0];
+          const worksheet = workbook.Sheets[firstSheetName];
+          const json = XLSX.utils.sheet_to_json(worksheet);
+
+          if (json.length === 0) {
+            toast('The imported file is empty.', 'err');
+            return;
+          }
+
+          broadcastList = json;
+          const columns = Object.keys(json[0]);
+          
+          clearBroadcastLogs();
+          addBroadcastLog(`Imported ${json.length} contacts successfully. Columns: ${columns.join(', ')}`, 'success');
+          updateBroadcastStats();
+          toast(`Successfully loaded ${json.length} contacts!`, 'ok');
+        } catch (err) {
+          addBroadcastLog(`Error parsing file: ${err.message}`, 'error');
+          toast('Error reading file. Confirm it is a valid Excel or CSV.', 'err');
+        }
+      };
+      
+      reader.onerror = function() {
+        toast('File read error.', 'err');
+      };
+
+      reader.readAsBinaryString(file);
+    }
+
+    function parseDirectNumbers() {
+      const textarea = document.getElementById('direct-numbers');
+      if (!textarea) return [];
+      const lines = textarea.value.split('\n');
+      const list = [];
+      lines.forEach(line => {
+        const num = line.replace(/\D/g, '');
+        if (num.length >= 10) {
+          list.push({ Phone: num, Name: `Receiver ${num.slice(-4)}` });
+        }
+      });
+      return list;
+    }
+
+    function updateBroadcastStats(pending = null, sent = 0, failed = 0) {
+      const total = broadcastList.length;
+      document.getElementById('stat-total').textContent = total;
+      
+      const pend = pending !== null ? pending : total;
+      document.getElementById('stat-pending').textContent = pend;
+      document.getElementById('stat-sent').textContent = sent;
+      document.getElementById('stat-failed').textContent = failed;
+
+      const progressFill = document.getElementById('broadcast-progress-bar');
+      if (progressFill) {
+        const percent = total > 0 ? ((sent + failed) / total) * 100 : 0;
+        progressFill.style.width = `${percent}%`;
+      }
+    }
+
+    function addBroadcastLog(text, type = 'info') {
+      const container = document.getElementById('broadcast-logs-container');
+      if (!container) return;
+      const div = document.createElement('div');
+      div.className = `broadcast-log-entry ${type}`;
+      
+      const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+      div.innerHTML = `[${time}] ${escapeHtml(text)}`;
+      
+      container.appendChild(div);
+      container.scrollTop = container.scrollHeight;
+    }
+
+    function clearBroadcastLogs() {
+      const container = document.getElementById('broadcast-logs-container');
+      if (container) container.innerHTML = '';
+    }
+
+    /* ─── Campaign Builder: attachment, message flow, AI follow-up ─── */
+    const CAMPAIGN_MAX_BYTES = 16 * 1024 * 1024;
+    let campaignMediaId = null;
+
+    function setCampaignControlsDisabled(flag) {
+      ['campaign-media', 'campaign-media-clear', 'campaign-flow', 'campaign-gap', 'campaign-ai-enabled', 'campaign-ai-prompt'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.disabled = flag;
+      });
+    }
+
+    function guessCampaignMime(file) {
+      if (file.type) return file.type;
+      const ext = (file.name.split('.').pop() || '').toLowerCase();
+      const map = {
+        pdf: 'application/pdf',
+        doc: 'application/msword',
+        docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        xls: 'application/vnd.ms-excel',
+        xlsx: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        ppt: 'application/vnd.ms-powerpoint',
+        pptx: 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+        txt: 'text/plain',
+        csv: 'text/csv'
+      };
+      return map[ext] || 'application/octet-stream';
+    }
+
+    async function handleCampaignMediaSelect(e) {
+      const file = e.target.files[0];
+      const info = document.getElementById('campaign-media-info');
+      if (!file) {
+        await clearCampaignMedia();
+        return;
+      }
+      if (file.size > CAMPAIGN_MAX_BYTES) {
+        toast('File is larger than 16 MB.', 'err');
+        e.target.value = '';
+        return;
+      }
+
+      info.textContent = `Uploading ${file.name}...`;
+      campaignMediaId = null;
+      try {
+        const dataUrl = await new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(reader.result);
+          reader.onerror = () => reject(new Error('File read error'));
+          reader.readAsDataURL(file);
+        });
+        const base64 = String(dataUrl).split(',')[1] || '';
+        const res = await apiFetch('/api/campaign/media', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ data: base64, mimetype: guessCampaignMime(file), filename: file.name })
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Upload failed');
+        campaignMediaId = data.id;
+        info.textContent = `Attached: ${data.filename} (${(data.size / 1048576).toFixed(2)} MB). The message text is sent as its caption.`;
+      } catch (err) {
+        campaignMediaId = null;
+        info.textContent = `Upload failed: ${err.message}`;
+        toast(`Attachment failed: ${err.message}`, 'err');
+      }
+    }
+
+    async function clearCampaignMedia() {
+      const hadMedia = !!campaignMediaId;
+      campaignMediaId = null;
+      document.getElementById('campaign-media').value = '';
+      document.getElementById('campaign-media-info').textContent =
+        'No file selected. Max 16 MB. The message text is sent as the caption.';
+      if (hadMedia) {
+        try { await apiFetch('/api/campaign/media', { method: 'DELETE' }); } catch (e) { }
+      }
+    }
+
+    function getFlowSteps() {
+      const raw = document.getElementById('campaign-flow').value;
+      return raw.split(/\n\s*---+\s*\n/).map(s => s.trim()).filter(Boolean);
+    }
+
+    function fillTemplate(text, row) {
+      let out = text;
+      for (const key in row) {
+        const escaped = key.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        out = out.replace(new RegExp(`\\{${escaped}\\}`, 'gi'), () => String(row[key] ?? ''));
+      }
+      return out;
+    }
+
+    function campaignWait(seconds) {
+      return new Promise(resolve => setTimeout(resolve, Math.max(1, seconds) * 1000));
+    }
+
+    async function sendCampaignStep(phone, message, mediaId = null) {
+      const body = { phone, message };
+      if (mediaId) body.mediaId = mediaId;
+      const res = await apiFetch('/api/send-message', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || 'Server rejected request');
+      }
+    }
+
+    async function generateCampaignFollowup(row, instruction) {
+      const res = await apiFetch('/api/ai/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ instruction, context: row })
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data.text) throw new Error(data.error || 'AI returned no text');
+      return data.text;
+    }
+
+    // Main message (with attachment) → flow steps → AI follow-up.
+    // Only a failed main message counts as Failed; later steps log their own errors.
+    async function runCampaignForContact(phone, row, mainText) {
+      const gap = parseFloat(document.getElementById('campaign-gap').value) || 3;
+      const aiEnabled = document.getElementById('campaign-ai-enabled').checked;
+      const aiInstruction = document.getElementById('campaign-ai-prompt').value.trim();
+
+      await sendCampaignStep(phone, mainText, campaignMediaId);
+
+      const steps = getFlowSteps();
+      for (let i = 0; i < steps.length && isBroadcasting; i++) {
+        await campaignWait(gap);
+        if (!isBroadcasting) break;
+        try {
+          await sendCampaignStep(phone, fillTemplate(steps[i], row));
+          addBroadcastLog(`(+${phone}) Flow step ${i + 2} sent.`, 'info');
+        } catch (err) {
+          addBroadcastLog(`(+${phone}) Flow step ${i + 2} failed: ${err.message}`, 'error');
+        }
+      }
+
+      if (aiEnabled && isBroadcasting) {
+        await campaignWait(gap);
+        if (isBroadcasting) {
+          try {
+            const aiText = await generateCampaignFollowup(row, aiInstruction);
+            await sendCampaignStep(phone, aiText);
+            addBroadcastLog(`(+${phone}) AI follow-up sent.`, 'info');
+          } catch (err) {
+            addBroadcastLog(`(+${phone}) AI follow-up failed: ${err.message}`, 'error');
+          }
+        }
+      }
+    }
+
+    /* ─── Sequential Broadcast Execution ─── */
+    function startBroadcast() {
+      if (isBroadcasting) return;
+
+      const template = document.getElementById('broadcast-msg-template').value.trim();
+      if (!template) {
+        toast('Please enter a message template.', 'err');
+        return;
+      }
+
+      if (document.getElementById('campaign-ai-enabled').checked && !document.getElementById('campaign-ai-prompt').value.trim()) {
+        toast('Enter what the AI should send as the follow-up.', 'err');
+        return;
+      }
+      if (document.getElementById('campaign-media').files.length && !campaignMediaId) {
+        toast('The attachment is still uploading or failed. Re-select the file.', 'err');
+        return;
+      }
+
+      // Read from direct textarea if no excel file loaded
+
+      if (broadcastList.length === 0) {
+        const direct = parseDirectNumbers();
+        if (direct.length === 0) {
+          toast('Please load a contacts file or input phone numbers.', 'err');
+          return;
+        }
+        broadcastList = direct;
+      }
+
+      const delaySec = parseFloat(document.getElementById('broadcast-delay').value) || 5;
+      
+      isBroadcasting = true;
+      broadcastIndex = 0;
+      
+      // Toggle control elements
+      document.getElementById('start-broadcast-btn').disabled = true;
+      document.getElementById('stop-broadcast-btn').disabled = false;
+      document.getElementById('import-file').disabled = true;
+      document.getElementById('direct-numbers').disabled = true;
+      document.getElementById('broadcast-msg-template').disabled = true;
+      document.getElementById('broadcast-delay').disabled = true;
+      setCampaignControlsDisabled(true);
+
+      clearBroadcastLogs();
+      addBroadcastLog(`Starting campaign broadcast to ${broadcastList.length} contacts...`, 'info');
+      
+      let sentCount = 0;
+      let failedCount = 0;
+      updateBroadcastStats(broadcastList.length, 0, 0);
+
+      function sendNext() {
+        if (!isBroadcasting) return;
+        
+        if (broadcastIndex >= broadcastList.length) {
+          addBroadcastLog(`Campaign broadcast completed! Total targets: ${broadcastList.length}`, 'success');
+          toast('Broadcast complete!', 'ok');
+          stopBroadcast();
+          return;
+        }
+
+        const row = broadcastList[broadcastIndex];
+        
+        // Match phone columns dynamically
+        let phone = '';
+        for (const key in row) {
+          const lowerKey = key.toLowerCase();
+          if (lowerKey === 'phone' || lowerKey === 'number' || lowerKey === 'telephone' || lowerKey === 'mobile' || lowerKey === 'phone number' || lowerKey === 'cnumber') {
+            phone = String(row[key]).replace(/\D/g, '');
+            break;
+          }
+        }
+        
+        if (!phone) {
+          for (const key in row) {
+            const val = String(row[key]).replace(/\D/g, '');
+            if (val.length >= 10 && val.length <= 15) {
+              phone = val;
+              break;
+            }
+          }
+        }
+
+        if (!phone) {
+          addBroadcastLog(`Row #${broadcastIndex + 1}: Skipped (No valid phone found).`, 'error');
+          failedCount++;
+          broadcastIndex++;
+          updateBroadcastStats(broadcastList.length - (sentCount + failedCount), sentCount, failedCount);
+          sendNext();
+          return;
+        }
+
+        // Parse placeholders
+        let message = template;
+        for (const key in row) {
+          const placeholder = `{${key}}`;
+          message = message.replace(new RegExp(placeholder, 'gi'), row[key]);
+        }
+
+        addBroadcastLog(`Sending to +${phone}...`, 'info');
+
+        runCampaignForContact(phone, row, message)
+        .then(() => {
+          addBroadcastLog(`Row #${broadcastIndex + 1} (+${phone}): Sent.`, 'success');
+          sentCount++;
+        })
+        .catch(err => {
+          addBroadcastLog(`Row #${broadcastIndex + 1} (+${phone}) Failed: ${err.message}`, 'error');
+          failedCount++;
+        })
+        .finally(() => {
+          broadcastIndex++;
+          updateBroadcastStats(broadcastList.length - (sentCount + failedCount), sentCount, failedCount);
+
+          if (isBroadcasting) {
+            // Emulate variance in interval spacing
+            const variance = (Math.random() * 0.4 - 0.2) * delaySec;
+            const finalDelay = Math.max(1, delaySec + variance) * 1000;
+            broadcastTimer = setTimeout(sendNext, finalDelay);
+          }
+        });
+      }
+
+      sendNext();
+    }
+
+    function stopBroadcast() {
+      isBroadcasting = false;
+      if (broadcastTimer) {
+        clearTimeout(broadcastTimer);
+        broadcastTimer = null;
+      }
+
+      document.getElementById('start-broadcast-btn').disabled = false;
+      document.getElementById('stop-broadcast-btn').disabled = true;
+      document.getElementById('import-file').disabled = false;
+      document.getElementById('direct-numbers').disabled = false;
+      document.getElementById('broadcast-msg-template').disabled = false;
+      document.getElementById('broadcast-delay').disabled = false;
+      setCampaignControlsDisabled(false);
+      
+      addBroadcastLog('Broadcast cancelled/stopped.', 'info');
+    }
+
+    /* ─── Documentation Key Helpers ─── */
+    function copyDocsSecret() {
+      const copyText = document.getElementById("api-docs-secret");
+      copyText.select();
+      copyText.setSelectionRange(0, 9999);
+      navigator.clipboard.writeText(copyText.value);
+      toast("API Secret copied to clipboard!", "ok");
+    }
+
+    function copyCode(btn) {
+      const codeSpan = btn.nextElementSibling;
+      const textToCopy = codeSpan.innerText || codeSpan.textContent;
+      navigator.clipboard.writeText(textToCopy);
+      
+      const originalText = btn.textContent;
+      btn.textContent = "Copied!";
+      setTimeout(() => { btn.textContent = originalText; }, 2000);
+    }
+
+    /* ─── Chat Listing & Rendering ─── */
+    async function loadChats() {
+      if (!isReady) return;
+      try {
+        const res = await apiFetch('/api/chats');
+        const chats = await res.json();
+        chatsCached = chats;
+        renderChatsList(chats);
+      } catch (err) {
+        console.error('Failed to load chats:', err.message);
+      }
+    }
+
+    function renderChatsList(chats) {
+      const searchTerm = searchInput.value.toLowerCase().trim();
+      const filtered = chats.filter(chat => {
+        const name = (chat.name || '').toLowerCase();
+        const jid = (chat.id || '').toLowerCase();
+        return name.includes(searchTerm) || jid.includes(searchTerm);
+      });
+
+      if (filtered.length === 0) {
+        chatsListEl.innerHTML = `<div class="empty-state">No chats found</div>`;
+        return;
+      }
+
+      chatsListEl.innerHTML = filtered.map(chat => {
+        const timeStr = formatTime(chat.timestamp);
+        const activeClass = activeJid === chat.id ? 'active' : '';
+        const unreadBadgeHtml = chat.unreadCount > 0 
+          ? `<span class="unread-badge">${chat.unreadCount}</span>` 
+          : '';
+        
+        let previewText = '';
+        if (chat.lastMessage) {
+          const prefix = chat.lastMessage.fromMe ? 'You: ' : '';
+          previewText = prefix + (chat.lastMessage.body || `[${chat.lastMessage.type || 'Media'}]`);
+        } else {
+          previewText = 'No messages';
+        }
+
+        const avatarInitial = (chat.name || chat.id.split('@')[0] || '?')[0].toUpperCase();
+
+        return `
+          <div class="chat-item ${activeClass}" onclick="selectChat('${chat.id}', '${escapeHtml(chat.name || chat.id.split('@')[0])}')">
+            <div class="chat-item-avatar">${avatarInitial}</div>
+            <div class="chat-item-content">
+              <div class="chat-item-top">
+                <span class="chat-name">${escapeHtml(chat.name || chat.id.split('@')[0])}</span>
+                <span class="chat-time">${timeStr}</span>
+              </div>
+              <div class="chat-item-bottom">
+                <span class="chat-preview ${chat.lastMessage && chat.lastMessage.fromMe ? 'from-me' : ''}">${escapeHtml(previewText)}</span>
+                ${unreadBadgeHtml}
+              </div>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    /* ─── Messages Thread Handling ─── */
+    async function selectChat(jid, name) {
+      activeJid = jid;
+      chatHeaderName.textContent = name;
+      chatHeaderJid.textContent = jid;
+      chatHeaderAvatar.textContent = name[0].toUpperCase();
+
+      const items = document.querySelectorAll('.chat-item');
+      items.forEach(item => item.classList.remove('active'));
+      const activeItem = Array.from(items).find(el => el.innerHTML.includes(jid));
+      if (activeItem) activeItem.classList.add('active');
+
+      document.body.classList.add('chat-open');
+
+      // Shift display tab back to messaging pane
+      switchTab('chats');
+    }
+
+    let messagesCache = [];
+
+    async function loadMessages(jid, forceScroll = false) {
+      if (activeJid !== jid || currentTab !== 'chats') return;
+      try {
+        const res = await apiFetch(`/api/chats/${jid}/messages`);
+        const messages = await res.json();
+        
+        const listStr = JSON.stringify(messages);
+        const cachedStr = JSON.stringify(messagesCache);
+        
+        if (listStr !== cachedStr || forceScroll) {
+          messagesCache = messages;
+          renderMessages(messages, forceScroll);
+        }
+      } catch (err) {
+        console.error('Failed to load messages:', err.message);
+      }
+    }
+
+    function renderMessages(messages, forceScroll) {
+      const threadHtml = messages.map(msg => {
+        const timeStr = new Date(msg.timestamp * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        const bubbleType = msg.fromMe ? 'outgoing' : 'incoming';
+        const mediaTagHtml = msg.hasMedia 
+          ? `<span class="message-media-tag">📁 Media Attachment (${escapeHtml(msg.type || 'attachment')})</span>` 
+          : '';
+        const ticksHtml = msg.fromMe ? `<span class="message-ticks">✓✓</span>` : '';
+
+        return `
+          <div class="message-bubble ${bubbleType}">
+            ${mediaTagHtml}
+            <div class="message-text">${escapeHtml(msg.body || '')}</div>
+            <div class="message-meta">
+              <span>${timeStr}</span>
+              ${ticksHtml}
+            </div>
+          </div>
+        `;
+      }).join('');
+
+      messagesThread.innerHTML = threadHtml || `<div class="empty-state">No messages in this chat</div>`;
+      scrollToBottom(forceScroll);
+    }
+
+    function scrollToBottom(force = false) {
+      const isNearBottom = messagesThread.scrollHeight - messagesThread.scrollTop - messagesThread.clientHeight < 200;
+      if (force || isNearBottom) {
+        messagesThread.scrollTop = messagesThread.scrollHeight;
+      }
+    }
+
+    /* ─── Send Message ─── */
+    messageForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const text = messageInput.value.trim();
+      if (!text || !activeJid) return;
+
+      messageInput.value = '';
+      const tempJid = activeJid;
+
+      try {
+        const res = await apiFetch(`/api/chats/${tempJid}/messages`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ message: text })
+        });
+        const data = await res.json();
+        
+        if (res.ok && data.success) {
+          await loadMessages(tempJid, true);
+          loadChats();
+        } else {
+          toast(data.error || 'Failed to send message', 'err');
+        }
+      } catch (err) {
+        toast('Error: ' + err.message, 'err');
+      }
+    });
+
+    /* ─── Interactive Filters & Events ─── */
+    searchInput.addEventListener('input', () => {
+      renderChatsList(chatsCached);
+    });
+
+    document.getElementById('back-btn').addEventListener('click', () => {
+      document.body.classList.remove('chat-open');
+      activeJid = null;
+      if (messagePollInterval) {
+        clearInterval(messagePollInterval);
+        messagePollInterval = null;
+      }
+    });
+
+    qrBtn.addEventListener('click', () => {
+      qrModal.style.display = 'flex';
+      renderQrCodeInModal();
+    });
+
+    closeModal.addEventListener('click', () => {
+      qrModal.style.display = 'none';
+    });
+
+    if (logoutBtn) {
+      logoutBtn.addEventListener('click', async () => {
+        if (confirm('Are you sure you want to log out?')) {
+          try {
+            const res = await apiFetch('/api/logout', { method: 'POST' });
+            if (res.ok) {
+              window.location.href = '/login';
+            } else {
+              toast('Logout failed', 'err');
+            }
+          } catch (err) {
+            toast('Error: ' + err.message, 'err');
+          }
+        }
+      });
+    }
+
+    window.addEventListener('click', (e) => {
+      if (e.target === qrModal) {
+        qrModal.style.display = 'none';
+      }
+    });
+
+    /* ─── Utility Helpers ─── */
+    function formatTime(unixTimestamp) {
+      if (!unixTimestamp) return '';
+      const date = new Date(unixTimestamp * 1000);
+      const now = new Date();
+      const isToday = date.toDateString() === now.toDateString();
+      if (isToday) {
+        return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      }
+      const yesterday = new Date(now);
+      yesterday.setDate(now.getDate() - 1);
+      if (date.toDateString() === yesterday.toDateString()) {
+        return 'Yesterday';
+      }
+      return date.toLocaleDateString([], { month: 'short', day: 'numeric' });
+    }
+
+    function escapeHtml(str) {
+      if (!str) return '';
+      return str
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+    }
+
+    let toastTimer;
+    function toast(msg, type = 'ok') {
+      const el = document.getElementById('toast');
+      el.textContent = msg;
+      el.className = 'show ' + type;
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => { el.className = ''; }, 3200);
+    }
+
+    // Startup Polls
+    checkStatus();
+    setInterval(checkStatus, 5000);
+
+    setTimeout(() => {
+      loadChats();
+      setInterval(loadChats, 5000);
+    }, 1000);
+  </script>
+</body>
+</html>
